@@ -1,20 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tangent Plane & Vector on Sphere (Three.js)</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>3D Curved Grid with Layer View</title>
+  <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
-  <div id="ui">
-    <h1>Click on the sphere</h1>
-    <p>
-      Shows tangent plane and a tangent vector at the picked point.
-    </p>
+  <div id="layerContainer">
+    <canvas id="layerView"></canvas>
+    <div id="resizeHandle"></div>
   </div>
+  
 
-  <!-- Three.js and modules (ESM from CDN) -->
-  <script type="module" src="./src/main.js"></script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
+

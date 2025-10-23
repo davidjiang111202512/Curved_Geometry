@@ -1,21 +1,47 @@
-body {
+html, body {
   margin: 0;
+  padding: 0;
   overflow: hidden;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background-color: black;
+  color: white;
+  font-family: monospace;
 }
 
-#ui {
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.85);
-  border-radius: 10px;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-  z-index: 10;
-  max-width: 300px;
+#main-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
-canvas {
+#three-container {
+  width: 80vw;
+  height: 100vh;
+}
+#layerContainer {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 250px;
+  height: 250px;
+  border: 1px solid #00ffff;
+  resize: none; /* we’ll handle manually */
+  overflow: hidden;
+}
+
+#layerView {
+  width: 100%;
+  height: 100%;
   display: block;
 }
+
+#resizeHandle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 15px;
+  height: 15px;
+  background: rgba(0, 255, 255, 0.4);
+  cursor: se-resize;
+}
+

@@ -1,95 +1,154 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// === Scene setup ===
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeeeeee);
+// === Main scene setup ===
+// === Layer resize logic ===
+const container = document.getElementById('layerContainer') as HTMLDivElement;
+const handle = document.getElementById('resizeHandle') as HTMLDivElement;
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 6);
+let isResizing = false;
+let startX = 0, startY = 0;
+let startWidth = 0, startHeight = 0;
+
+handle.addEventListener('mousedown', (e) => {
+  isResizing = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  startWidth = container.offsetWidth;
+  startHeight = container.offsetHeight;
+  document.body.style.cursor = 'se-resize';
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!isResizing) return;
+  const newWidth = Math.max(150, startWidth + (e.clientX - startX));
+  const newHeight = Math.max(150, startHeight + (e.clientY - startY));
+  container.style.width = `${newWidth}px`;
+  container.style.height = `${newHeight}px`;
+  layerRenderer.setSize(newWidth, newHeight);
+});
+
+window.addEventListener('mouseup', () => {
+  isResizing = false;
+  document.body.style.cursor = 'default';
+});
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(
+  45,
+  window.innerWidth * 0.8 / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.set(6, 6, 6);
+camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(window.innerWidth * 0.8, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
 
-// === Sphere geometry ===
-const geometry = new THREE.SphereGeometry(2, 32, 32);
+// === Parameters ===
+const Nx = 15, Ny = 15, Nz = 15;
+const size = 4;
+const dx = size / (Nx - 1);
+const dy = size / (Ny - 1);
+const dz = size / (Nz - 1);
+const start = -size / 2;
 
-// Outer smooth white sphere
-const materialOutside = new THREE.MeshPhongMaterial({
-  color: 0xffffff,
-  side: THREE.FrontSide,
-  shininess: 80
-});
-const sphereOutside = new THREE.Mesh(geometry, materialOutside);
-scene.add(sphereOutside);
+// === Generate points ===
+const points: THREE.Vector3[] = [];
+for (let i = 0; i < Nx; i++) {
+  for (let j = 0; j < Ny; j++) {
+    for (let k = 0; k < Nz; k++) {
+      const x = start + i * dx;
+      const y = start + j * dy;
+      const z = start + k * dz;
+      points.push(new THREE.Vector3(x, y, z));
+    }
+  }
+}
 
-// Inner wireframe (only back faces)
-const materialInside = new THREE.MeshBasicMaterial({
-  color: 0xffffff,
-  wireframe: true,
-  side: THREE.BackSide
-});
-const sphereInside = new THREE.Mesh(geometry, materialInside);
-scene.add(sphereInside);
-
-// === Lights ===
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 5, 5);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x404040));
-
-// === Choose a point on the sphere ===
-const point = new THREE.Vector3(0, 2, 0); // north pole
-const normal = point.clone().normalize();
-
-// Draw point marker
-const pointGeom = new THREE.SphereGeometry(0.02, 16, 16);
-const pointMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-const pointMesh = new THREE.Mesh(pointGeom, pointMat);
-pointMesh.position.copy(point);
-scene.add(pointMesh);
-
-// === Tangent plane ===
-const planeSize = 0.3;
-const tangentPlaneGeometry = new THREE.PlaneGeometry(planeSize, planeSize);
-const tangentPlaneMaterial = new THREE.MeshBasicMaterial({
-  color: 0xffcc00,
-  side: THREE.DoubleSide,
+// === Points visualization ===
+const geometry = new THREE.BufferGeometry().setFromPoints(points);
+const pointMaterial = new THREE.PointsMaterial({
+  color: 0x00ffff,
+  size: 0.05,
   transparent: true,
-  opacity: 0.4
+  opacity: 0.9
 });
-const tangentPlane = new THREE.Mesh(tangentPlaneGeometry, tangentPlaneMaterial);
-const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-tangentPlane.setRotationFromQuaternion(q);
-tangentPlane.position.copy(point);
-scene.add(tangentPlane);
+const pointCloud = new THREE.Points(geometry, pointMaterial);
+scene.add(pointCloud);
 
-// === Tangent vector ===
-const tangentVec = new THREE.Vector3(1, 0, 0);
-tangentVec.projectOnPlane(normal).normalize().multiplyScalar(0.3);
+// === Layer view ===
+const layerCanvas = document.getElementById('layerView') as HTMLCanvasElement;
+const layerRenderer = new THREE.WebGLRenderer({ canvas: layerCanvas, antialias: true });
+layerRenderer.setSize(500, 500);
+layerRenderer.setPixelRatio(window.devicePixelRatio);
 
-const tangentArrow = new THREE.ArrowHelper(
-  tangentVec.clone().normalize(),
-  point,
-  tangentVec.length(),
-  0xff0000
+const layerScene = new THREE.Scene();
+layerScene.background = new THREE.Color(0x000000);
+
+// Orthographic camera (adjust size for zoom control)
+let zoomFactor = 1.0;
+const orthoSize = size / 2;
+const layerCamera = new THREE.OrthographicCamera(
+  -orthoSize * zoomFactor,
+  orthoSize * zoomFactor,
+  orthoSize * zoomFactor,
+  -orthoSize * zoomFactor,
+  0.1,
+  100
 );
-scene.add(tangentArrow);
+layerCamera.position.set(0, 0, 10);
+layerCamera.lookAt(0, 0, 0);
 
-// === Render loop ===
+let currentLayer = 0;
+
+// Function to update visible points
+function extractLayer(k: number) {
+  const zTarget = start + k * dz;
+  const tolerance = dz * 0.5;
+  return points.filter(p => Math.abs(p.z - zTarget) < tolerance);
+}
+
+// Dynamic update
+function updateLayerView() {
+  const layerPoints = extractLayer(currentLayer);
+
+  layerScene.clear();
+
+  const geom = new THREE.BufferGeometry().setFromPoints(layerPoints);
+  const mat = new THREE.PointsMaterial({ color: 0xffff00, size: 2 });
+  const layerCloud = new THREE.Points(geom, mat);
+  layerScene.add(layerCloud);
+
+  layerRenderer.render(layerScene, layerCamera);
+}
+
+// Mouse wheel zoom for layer
+layerCanvas.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  zoomFactor *= event.deltaY > 0 ? 1.1 : 0.9; // scroll up/down
+  zoomFactor = Math.max(0.3, Math.min(zoomFactor, 3.0));
+
+  layerCamera.left = -orthoSize * zoomFactor;
+  layerCamera.right = orthoSize * zoomFactor;
+  layerCamera.top = orthoSize * zoomFactor;
+  layerCamera.bottom = -orthoSize * zoomFactor;
+  layerCamera.updateProjectionMatrix();
+});
+
+// === Animate both views ===
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
+  updateLayerView();
 }
 animate();
-
-// === Handle resize ===
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
